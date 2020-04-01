@@ -69,6 +69,7 @@ void uart_rs485_request_end(rt_bool_t consume)
 	uart_client_request_end(client, consume);
 }
 
+//与另一个串口设备通讯的例子：设置时间，不需要设备响应
 rt_err_t uart_rs485_set_datetime(rt_uint16_t year, rt_uint8_t month, rt_uint8_t day, rt_uint8_t hour, rt_uint8_t min, rt_uint8_t sec)
 {
     rt_err_t res;
@@ -82,6 +83,7 @@ rt_err_t uart_rs485_set_datetime(rt_uint16_t year, rt_uint8_t month, rt_uint8_t 
     return res;	
 }
 
+//与另一个串口设备通讯的例子：配置设备，需要设备响应
 rt_err_t uart_rs485_set_config(char *params)
 {
     rt_err_t res;

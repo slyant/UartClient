@@ -1,9 +1,7 @@
 #ifndef __UART_GENERIC_DEVICE_H__
 #define __UART_GENERIC_DEVICE_H__
 
-//#define BSP_USING_UART_CLIENT
-
-#ifdef BSP_USING_UART_CLIENT
+#ifdef PKG_USING_UART_CLIENT
 
 struct uart_response
 {

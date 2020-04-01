@@ -12,18 +12,18 @@
 #define CLIENT_THREAD_NAME          "uc"
 #define CLIENT_TIME_NAME            "uctime"
 
-#ifndef BSP_UART_CLIENT_MAX_COUNT
-	#define BSP_UART_CLIENT_MAX_COUNT	8
+#ifndef PKG_UART_CLIENT_MAX_COUNT
+	#define PKG_UART_CLIENT_MAX_COUNT	8
 #endif
 
-#ifdef BSP_USING_UART_CLIENT
+#ifdef PKG_USING_UART_CLIENT
 
-static uart_client_t uart_client_list[BSP_UART_CLIENT_MAX_COUNT] = { 0 };
+static uart_client_t uart_client_list[PKG_UART_CLIENT_MAX_COUNT] = { 0 };
 
 /* Get uart client by client device name */
 uart_client_t uart_client_get_by_name(const char *dev_name)
 {
-	for(int i = 0; i < BSP_UART_CLIENT_MAX_COUNT; i++)
+	for(int i = 0; i < PKG_UART_CLIENT_MAX_COUNT; i++)
 	{
 		if(uart_client_list[i] && rt_strcmp(uart_client_list[i]->device->parent.name, dev_name) == 0)
 		{
@@ -240,7 +240,7 @@ uart_client_t uart_client_create(const char *dev_name,
     RT_ASSERT(dev_name);
     RT_ASSERT(recv_buf_size > 0);	
 	
-	if(client_num >= BSP_UART_CLIENT_MAX_COUNT)
+	if(client_num >= PKG_UART_CLIENT_MAX_COUNT)
 	{
 		result = -RT_EFULL;
 		goto __exit;

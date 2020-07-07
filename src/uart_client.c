@@ -1,9 +1,9 @@
 #include <rtthread.h>
 #include <uart_client.h>
 
-#define LOG_TAG              "uart.client"
-#define LOG_LVL              LOG_LVL_INFO
-#include <ulog.h>
+#define DBG_TAG    "uart.client"
+#define DBG_LVL    DBG_INFO
+#include <rtdbg.h>
 
 #define CLIENT_LOCK_NAME            "uclock"
 #define CLIENT_SEM_NAME             "ucsem"
@@ -30,7 +30,7 @@ uart_client_t uart_client_get_by_name(const char *dev_name)
 			return uart_client_list[i];
 		}
 	}
-    return RT_NULL;	
+    return RT_NULL;
 }
 
 static rt_err_t uart_client_rx_ind(rt_device_t dev, rt_size_t size)
@@ -64,7 +64,7 @@ static rt_err_t uart_client_getbyte(uart_client_t client, rt_uint8_t *ch, rt_int
 static rt_size_t uart_client_get_buf(uart_client_t client, rt_int32_t timeout)
 {
     rt_size_t recv_index = 0;
-    rt_uint8_t temp_ch;    
+    rt_uint8_t temp_ch;
     while(1)
     {
 		if(uart_client_getbyte(client, &temp_ch, timeout) == RT_EOK)
@@ -93,9 +93,9 @@ rt_err_t uart_client_request_start(uart_client_t client, rt_uint32_t timeout_ms,
 		LOG_E("the uart client is null!");
 		return -RT_EEMPTY;
 	}
-	
+
 	rt_sem_take(client->lock, RT_WAITING_FOREVER);
-	
+
 	client->resp.timeout = rt_tick_from_millisecond(timeout_ms);
 	client->resp.buf = RT_NULL;
 	client->resp.buf_size = 0;
@@ -115,7 +115,7 @@ rt_err_t uart_client_request_start(uart_client_t client, rt_uint32_t timeout_ms,
         }
 	}
 
-    return result;	
+    return result;
 }
 
 rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t timeout_ms, rt_uint8_t *req_buf, rt_size_t req_size, void (*set_tx)(void), void (*set_rx)(void))
@@ -126,9 +126,9 @@ rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t 
 		LOG_E("the uart client is null!");
 		return -RT_EEMPTY;
 	}
-	
+
 	rt_sem_take(client->lock, RT_WAITING_FOREVER);
-	
+
 	client->resp.timeout = rt_tick_from_millisecond(timeout_ms);
 	client->resp.buf = RT_NULL;
 	client->resp.buf_size = 0;
@@ -152,13 +152,13 @@ rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t 
         }
 	}
 
-    return result;	
+    return result;
 }
 
 void uart_client_request_end(uart_client_t client, rt_bool_t consume)
 {
 	if(client == RT_NULL) return;
-	
+
 	client->resp.timeout = 0;
 	client->resp.buf = RT_NULL;
 	client->resp.buf_size = 0;
@@ -184,7 +184,7 @@ rt_err_t uart_client_request_no_response_with_rs485(uart_client_t client, rt_uin
 }
 
 static void client_parser(uart_client_t client)
-{      
+{
 	rt_size_t size;
     while(1)
     {
@@ -196,9 +196,9 @@ static void client_parser(uart_client_t client)
 			{
 				client->resp.buf = client->recv_buf;
 				client->resp.buf_size = size;
-				
-				rt_sem_control(client->resp_end_notice, RT_IPC_CMD_RESET, RT_NULL);	
-				
+
+				rt_sem_control(client->resp_end_notice, RT_IPC_CMD_RESET, RT_NULL);
+
 				rt_sem_release(client->resp_notice);
 				rt_sem_take(client->resp_end_notice, RT_WAITING_FOREVER);
 				consume = client->resp_consume;
@@ -206,7 +206,7 @@ static void client_parser(uart_client_t client)
 			if(consume == RT_FALSE && client->frame_handler != RT_NULL)
 			{
 				client->frame_handler(client->recv_buf, size);
-			}				
+			}
 			rt_memset(client->recv_buf, 0x00, client->recv_buf_size);
 		}
     }
@@ -220,32 +220,32 @@ static void send_interval_timeout(uart_client_t client)
 void uart_client_set_frame_handler(uart_client_t client, rt_uint32_t frame_timeout_ms, void (*frame_handler)(rt_uint8_t *frame_data, rt_size_t size))
 {
 	if(client == RT_NULL) return;
-	
+
     client->frame_handler = frame_handler;
     client->frame_timeout_ms = frame_timeout_ms;
 }
 
-uart_client_t uart_client_create(const char *dev_name, 
-                                rt_size_t recv_buf_size, 
-                                rt_uint32_t send_interval_ms, 
-                                rt_uint32_t frame_timeout_ms, 
+uart_client_t uart_client_create(const char *dev_name,
+                                rt_size_t recv_buf_size,
+                                rt_uint32_t send_interval_ms,
+                                rt_uint32_t frame_timeout_ms,
                                 void (*frame_handler)(rt_uint8_t *frame_data, rt_size_t size))
 {
     int result = RT_EOK;
     static int client_num = 0;
-    char name[RT_NAME_MAX];	
+    char name[RT_NAME_MAX];
     rt_err_t open_result = RT_EOK;
     uart_client_t client = RT_NULL;
 
     RT_ASSERT(dev_name);
-    RT_ASSERT(recv_buf_size > 0);	
-	
+    RT_ASSERT(recv_buf_size > 0);
+
 	if(client_num >= PKG_UART_CLIENT_MAX_COUNT)
 	{
 		result = -RT_EFULL;
 		goto __exit;
 	}
-	
+
 	client = rt_calloc(1, sizeof(struct uart_client));
 	if(client == RT_NULL)
 	{
@@ -253,16 +253,16 @@ uart_client_t uart_client_create(const char *dev_name,
 		result = -RT_ENOMEM;
 		goto __exit;
 	}
-	
+
 	client->resp.buf = RT_NULL;
 	client->resp.buf_size = 0;
 	client->resp.timeout = 0;
 	client->resp_consume = RT_FALSE;
 	client->parser = RT_NULL;
-	
+
 	client->frame_timeout_ms = frame_timeout_ms;
 	client->frame_handler = frame_handler;
-	
+
 	client->recv_buf = (rt_uint8_t *)rt_calloc(1, recv_buf_size);
     if (client->recv_buf == RT_NULL)
     {
@@ -271,12 +271,12 @@ uart_client_t uart_client_create(const char *dev_name,
 		goto __exit;
     }
 	client->recv_buf_size = recv_buf_size;
-    
+
 	rt_snprintf(name, RT_NAME_MAX, "%s%d", CLIENT_TIME_NAME, client_num);
-    client->send_interval_timer = rt_timer_create(name, 
-                                                (void (*)(void *params))send_interval_timeout, 
-                                                client, 
-                                                rt_tick_from_millisecond(send_interval_ms), 
+    client->send_interval_timer = rt_timer_create(name,
+                                                (void (*)(void *params))send_interval_timeout,
+                                                client,
+                                                rt_tick_from_millisecond(send_interval_ms),
                                                 RT_TIMER_FLAG_ONE_SHOT|RT_TIMER_FLAG_SOFT_TIMER);
     if (client->send_interval_timer == RT_NULL)
     {
@@ -284,7 +284,7 @@ uart_client_t uart_client_create(const char *dev_name,
         result = -RT_ENOMEM;
         goto __exit;
     }
-	
+
 	rt_snprintf(name, RT_NAME_MAX, "%s%d", CLIENT_LOCK_NAME, client_num);
     client->lock = rt_sem_create(name, 1, RT_IPC_FLAG_FIFO);
     if (client->lock == RT_NULL)
@@ -311,7 +311,7 @@ uart_client_t uart_client_create(const char *dev_name,
         result = -RT_ENOMEM;
         goto __exit;
     }
-	
+
     rt_snprintf(name, RT_NAME_MAX, "%s%d", CLIENT_SEM_RESP_END_NAME, client_num);
     client->resp_end_notice = rt_sem_create(name, 0, RT_IPC_FLAG_FIFO);
     if (client->resp_end_notice == RT_NULL)
@@ -319,7 +319,7 @@ uart_client_t uart_client_create(const char *dev_name,
         LOG_E("uart client(%s) failure to create! uart_client_resp_end semaphore create failed!", dev_name);
         result = -RT_ENOMEM;
         goto __exit;
-    } 
+    }
 
 	rt_snprintf(name, RT_NAME_MAX, "%s%d", CLIENT_THREAD_NAME, client_num);
     client->parser = rt_thread_create(name,
@@ -333,8 +333,8 @@ uart_client_t uart_client_create(const char *dev_name,
 		LOG_E("uart client(%s) failure to create! no memory for parser thread.", dev_name);
         result = -RT_ENOMEM;
         goto __exit;
-    }	
-	
+    }
+
 	client->device = rt_device_find(dev_name);
     if (client->device)
     {
@@ -357,10 +357,10 @@ uart_client_t uart_client_create(const char *dev_name,
         result = -RT_ERROR;
         goto __exit;
     }
-	
+
 __exit:
     if (result == RT_EOK)
-    {		
+    {
 		uart_client_list[client_num++] = client;
         rt_thread_startup(client->parser);
         LOG_I("uart client on device %s create success.", dev_name);
@@ -371,7 +371,7 @@ __exit:
 		{
 		    if(client->lock)
 			{
-				rt_sem_delete(client->lock);				
+				rt_sem_delete(client->lock);
 			}
 			if (client->rx_notice)
 			{
@@ -380,7 +380,7 @@ __exit:
 			if (client->resp_notice)
 			{
 				rt_sem_delete(client->resp_notice);
-			}			
+			}
 			if (client->resp_end_notice)
 			{
 				rt_sem_delete(client->resp_end_notice);
@@ -393,7 +393,7 @@ __exit:
 			if (client->device)
 			{
 				rt_device_close(client->device);
-			}			
+			}
 			if(client->parser)
 			{
 				rt_thread_delete(client->parser);
@@ -401,8 +401,8 @@ __exit:
             if(client->send_interval_timer)
             {
                 rt_timer_delete(client->send_interval_timer);
-            }            
-		
+            }
+
 			rt_free(client);
 			client = RT_NULL;
 		}

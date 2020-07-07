@@ -1,13 +1,14 @@
 #include <rtthread.h>
+#include <rtdevice.h>
 #include <board.h>
 #include "uart_client.h"
 
-#define LOG_TAG              "uart.rs485"
-#define LOG_LVL              LOG_LVL_INFO
+#define LOG_TAG              "uart.client.test"
+#define LOG_LVL              LOG_LVL_DBG
 #include <ulog.h>
 
-#define UART_NAME           "uart2"
-#define UART_BAUD_RATE		BAUD_RATE_115200
+#define UART_NAME           "uart5"
+#define UART_BAUD_RATE		9600
 
 #define RECV_BUF_SIZE       (256)
 #define FRAME_TIMEOUT_MS	500
@@ -61,10 +62,11 @@ rt_err_t uart_set_datetime(rt_uint16_t year, rt_uint8_t month, rt_uint8_t day, r
     rt_err_t res;
 	if(client == RT_NULL) return -RT_EEMPTY;
 
-	char *frame_data = "2020-04-01 17:48:00";
+	char frame_data[100] = {0};
+	rt_sprintf(frame_data, "{\"method\":\"set.datetime\",\"args\":{\"year\":%d,\"month\":%d,\"day\":%d,\"hour\":%d,\"min\":%d,\"sec\":%d}}", year, month, day, hour, min, sec);
 	rt_uint16_t frame_len = rt_strlen(frame_data);
 	res = uart_request_no_response((rt_uint8_t*)frame_data, frame_len);
-    //LOG_HEX("req_buf", 16, frame_data, frame_len);
+    LOG_HEX("req_buf", 16, (rt_uint8_t*)frame_data, frame_len);
 
     return res;
 }
@@ -78,12 +80,12 @@ rt_err_t uart_set_config(char *params)
     rt_bool_t consume = RT_FALSE;
 	char *frame_data = params;
 	rt_uint16_t frame_len = rt_strlen(frame_data);
-	res = uart_2_request_start((rt_uint8_t*)frame_data, frame_len, 2000);
-    //LOG_HEX("req_buf", 16, frame_data, frame_len);
+	res = uart_request_start((rt_uint8_t*)frame_data, frame_len, 2000);
+    LOG_HEX("req_buf", 16, (rt_uint8_t*)frame_data, frame_len);
 	if(res == RT_EOK)
 	{
-		//LOG_HEX("client->resp.buf", 16, client->resp.buf, client->resp.buf_size);
-        if(rt_strstr(client->resp.buf, "OK"))
+		LOG_HEX("client->resp.buf", 16, client->resp.buf, client->resp.buf_size);
+        if(rt_strstr((char*)client->resp.buf, "OK"))
         {
 			consume = RT_TRUE;
         }
@@ -122,3 +124,23 @@ int uart_client_init(void)
 
     return RT_EOK;
 }
+INIT_APP_EXPORT(uart_client_init);
+
+void set_datetime(void)
+{
+    uart_set_datetime(2020, 7, 7, 22, 30, 0);
+}
+MSH_CMD_EXPORT(set_datetime, set datetime test);
+
+void set_config(void)
+{
+    rt_err_t rst = uart_set_config("{\"param1\":\"value1\"}");
+    if(rst == RT_EOK)
+    {
+        LOG_I("uart set config success!");
+    }
+    else {
+        LOG_E("uart set config failed!(%d)", rst);
+    }
+}
+MSH_CMD_EXPORT(set_config, set config test);

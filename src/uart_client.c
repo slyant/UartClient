@@ -326,7 +326,7 @@ uart_client_t uart_client_create(const char *dev_name,
                                      (void (*)(void *parameter))client_parser,
                                      client,
                                      384,
-                                     RT_THREAD_PRIORITY_MAX / 3 + client_num,
+                                     PKG_UART_CLIENT_PRIORITY_START + client_num,
                                      20);
     if (client->parser == RT_NULL)
     {

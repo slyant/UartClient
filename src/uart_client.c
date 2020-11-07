@@ -16,6 +16,10 @@
 	#define PKG_UART_CLIENT_MAX_COUNT	8
 #endif
 
+#ifndef PKG_UART_CLIENT_THREAD_STACK_SIZE
+	#define PKG_UART_CLIENT_THREAD_STACK_SIZE	512
+#endif
+
 #ifdef PKG_USING_UART_CLIENT
 
 static uart_client_t uart_client_list[PKG_UART_CLIENT_MAX_COUNT] = { 0 };
@@ -325,7 +329,7 @@ uart_client_t uart_client_create(const char *dev_name,
     client->parser = rt_thread_create(name,
                                      (void (*)(void *parameter))client_parser,
                                      client,
-                                     384,
+                                     PKG_UART_CLIENT_THREAD_STACK_SIZE,
                                      PKG_UART_CLIENT_PRIORITY_START + client_num,
                                      20);
     if (client->parser == RT_NULL)

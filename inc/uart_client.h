@@ -17,7 +17,8 @@ struct uart_client
 	rt_size_t recv_buf_size;
 	rt_uint32_t frame_timeout_ms;
 	rt_sem_t rx_notice;
-    rt_sem_t lock;
+	rt_mailbox_t rx_mb;
+    rt_mutex_t lock;
 
 	struct uart_response resp;
 	rt_sem_t resp_notice;

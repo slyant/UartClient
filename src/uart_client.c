@@ -7,6 +7,7 @@
 
 #define CLIENT_LOCK_NAME            "uclock"
 #define CLIENT_SEM_NAME             "ucsem"
+#define CLIENT_TXSEM_NAME           "uctxsem"
 #define CLIENT_MB_NAME              "ucmb"
 #define CLIENT_SEM_RESP_NAME        "ucres"
 #define CLIENT_SEM_RESP_END_NAME    "ucrend"
@@ -128,6 +129,7 @@ rt_err_t uart_client_request_start(uart_client_t client, rt_uint32_t timeout_ms,
     }
 
     rt_mutex_take(client->lock, RT_WAITING_FOREVER);
+    rt_sem_take(client->tx_sem, RT_WAITING_FOREVER);
 
     client->resp.timeout = rt_tick_from_millisecond(timeout_ms);
     client->resp.buf = RT_NULL;
@@ -136,11 +138,27 @@ rt_err_t uart_client_request_start(uart_client_t client, rt_uint32_t timeout_ms,
     if (client->resp.timeout == 0)
     {
         rt_device_write(client->device, 0, req_buf, req_size);
+        if (client->send_interval_timer)
+        {
+            rt_timer_start(client->send_interval_timer);
+        }
+        else
+        {
+            rt_sem_release(client->tx_sem);
+        }
     }
     else
     {
         rt_sem_control(client->resp_notice, RT_IPC_CMD_RESET, RT_NULL);
         rt_device_write(client->device, 0, req_buf, req_size);
+        if (client->send_interval_timer)
+        {
+            rt_timer_start(client->send_interval_timer);
+        }
+        else
+        {
+            rt_sem_release(client->tx_sem);
+        }
         if (rt_sem_take(client->resp_notice, client->resp.timeout) != RT_EOK)
         {
             LOG_D("uart client(%s) request timeout (%d ticks)!", client->device->parent.name, client->resp.timeout);
@@ -162,6 +180,7 @@ rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t 
     }
 
     rt_mutex_take(client->lock, RT_WAITING_FOREVER);
+    rt_sem_take(client->tx_sem, RT_WAITING_FOREVER);
 
     client->resp.timeout = rt_tick_from_millisecond(timeout_ms);
     client->resp.buf = RT_NULL;
@@ -171,6 +190,14 @@ rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t 
     {
         set_tx();
         rt_device_write(client->device, 0, req_buf, req_size);
+        if (client->send_interval_timer)
+        {
+            rt_timer_start(client->send_interval_timer);
+        }
+        else
+        {
+            rt_sem_release(client->tx_sem);
+        }
         set_rx();
     }
     else
@@ -178,6 +205,14 @@ rt_err_t uart_client_request_start_with_rs485(uart_client_t client, rt_uint32_t 
         rt_sem_control(client->resp_notice, RT_IPC_CMD_RESET, RT_NULL);
         set_tx();
         rt_device_write(client->device, 0, req_buf, req_size);
+        if (client->send_interval_timer)
+        {
+            rt_timer_start(client->send_interval_timer);
+        }
+        else
+        {
+            rt_sem_release(client->tx_sem);
+        }
         set_rx();
         if (rt_sem_take(client->resp_notice, client->resp.timeout) != RT_EOK)
         {
@@ -199,14 +234,7 @@ void uart_client_request_end(uart_client_t client, rt_bool_t consume)
     client->resp.buf_size = 0;
     client->resp_consume = consume;
     rt_sem_release(client->resp_end_notice);
-    if (client->send_interval_timer)
-    {
-        rt_timer_start(client->send_interval_timer);
-    }
-    else
-    {
-        rt_mutex_release(client->lock);
-    }
+    rt_mutex_release(client->lock);
 }
 
 rt_err_t uart_client_request_no_response(uart_client_t client, rt_uint8_t *req_buf, rt_size_t req_size)
@@ -257,7 +285,7 @@ static void client_parser(uart_client_t client)
 
 static void send_interval_timeout(uart_client_t client)
 {
-    rt_mutex_release(client->lock);
+    rt_sem_release(client->tx_sem);
 }
 
 void uart_client_set_frame_handler(uart_client_t client, rt_uint32_t frame_timeout_ms,
@@ -331,6 +359,15 @@ uart_client_t uart_client_create(const char *dev_name, rt_size_t recv_buf_size, 
     if (client->lock == RT_NULL)
     {
         LOG_E("uart client(%s) failure to create! uart_client_lock create failed!", dev_name);
+        result = -RT_ENOMEM;
+        goto __exit;
+    }
+
+    rt_snprintf(name, RT_NAME_MAX, "%s%d", CLIENT_TXSEM_NAME, client_num);
+    client->tx_sem = rt_sem_create(name, 1, RT_IPC_FLAG_FIFO);
+    if (client->tx_sem == RT_NULL)
+    {
+        LOG_E("uart client(%s) failure to create! uart_client_tx_sem create failed!", dev_name);
         result = -RT_ENOMEM;
         goto __exit;
     }
@@ -420,6 +457,10 @@ uart_client_t uart_client_create(const char *dev_name, rt_size_t recv_buf_size, 
             if (client->lock)
             {
                 rt_mutex_delete(client->lock);
+            }
+            if (client->tx_sem)
+            {
+                rt_sem_delete(client->tx_sem);
             }
             if (client->rx_notice)
             {

@@ -1,4 +1,5 @@
 #include <rtthread.h>
+#include <rtdevice.h>
 #include <uart_client.h>
 
 #define DBG_TAG    "uart.client"
@@ -403,7 +404,10 @@ uart_client_t uart_client_create(const char *dev_name, rt_size_t recv_buf_size, 
     if (client->device)
     {
         RT_ASSERT(client->device->type == RT_Device_Class_Char);
-
+#ifdef RT_USING_SERIAL_V2
+        open_result = rt_device_open(client->device, RT_DEVICE_FLAG_RX_NON_BLOCKING | RT_DEVICE_FLAG_TX_BLOCKING);
+#else
+#ifdef RT_SERIAL_USING_DMA
         /* using DMA mode first */
         open_result = rt_device_open(client->device, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_DMA_RX);
         /* using interrupt mode when DMA mode not supported */
@@ -420,9 +424,12 @@ uart_client_t uart_client_create(const char *dev_name, rt_size_t recv_buf_size, 
             }
         }
         else if (open_result == -RT_EIO)
+#endif
         {
             open_result = rt_device_open(client->device, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_INT_RX);
-        }RT_ASSERT(open_result == RT_EOK);
+        }
+#endif
+        RT_ASSERT(open_result == RT_EOK);
 
         rt_device_set_rx_indicate(client->device, uart_client_rx_ind);
     }
